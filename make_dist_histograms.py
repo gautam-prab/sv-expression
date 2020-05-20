@@ -88,7 +88,7 @@ if fromscratch:
         j += 1
 
 else:
-    vcf = VCF('allSVs_1MB.vcf.gz')
+    vcf = VCF('cosmicVariants_filtered.vcf.gz')
     sample_ord = vcf.samples
 
     j = 1
@@ -117,7 +117,7 @@ else:
             unaff_dat = unaff_dat/np.std(dat)
 
             _, p = mannwhitneyu(aff_dat, unaff_dat, alternative='two-sided')
-            if p < (3 * 10 ** -47):
+            if p < (6 * 10 ** -6):
                 flag = True
                 print('\tSV ID {} is significant with p={}'.format(record.ID, p))
 

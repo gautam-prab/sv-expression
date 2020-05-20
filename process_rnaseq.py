@@ -7,17 +7,19 @@ import matplotlib.pyplot as plt
 from cyvcf2 import VCF, Writer
 import pickle
 from scipy.stats import mannwhitneyu
+from pyliftover import LiftOver
 
 def build_args():
     parser = argparse.ArgumentParser(description='Find closeby structural variants to genes with differential expression')
-    parser.add_argument('--p', default=0.05/128065, type=float) # 12816 for 100kb tolerance, 128065 for 1Mb
-    parser.add_argument('--rnafile', default='Data/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt')
-    parser.add_argument('--vcffile', default='Data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.vcf.gz')
-    parser.add_argument('--outfile', const='SVs.vcf.gz', default=None, nargs='?')
-    parser.add_argument('--tolerance', default=100000, type=int)
-    parser.add_argument('--maxchrom', default=None)
-    parser.add_argument('--maf', default=0.05, type=float)
-    parser.add_argument('--pfile', default='pvalues.csv')
+    parser.add_argument('--p', default=0.05/128065, type=float, help='P-value cutoff') # 12816 for 100kb tolerance, 128065 for 1Mb
+    parser.add_argument('--rnafile', default='Data/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt', help='TSV of RNA seq data for samples of interest')
+    parser.add_argument('--vcffile', default='Data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.vcf.gz', help='VCF file containing genotypes for variants of interest')
+    parser.add_argument('--outfile', const='SVs.vcf.gz', default=None, nargs='?', help='Output file, a VCF which will contain only the variants deemed significant')
+    parser.add_argument('--tolerance', default=100000, type=int, help='cis region near genes to consider (in # of bases)')
+    parser.add_argument('--maxchrom', default=None, help='set to 22 if you want to do autosomes only')
+    parser.add_argument('--maf', default=0.05, type=float, help='Minor allele frequency cutoff; only consider those with higher MAF')
+    parser.add_argument('--pfile', default='pvalues.csv', help='File to save p-values to for p-value cutoff analysis')
+    parser.add_argument('--reference', default='hg19', help='Reference genome to use for VCF file. Enter either hg19 or hg38.')
     return parser.parse_args()
 
 # find closeby structural variants to an ORF
@@ -53,13 +55,21 @@ if args.outfile:
 
 pvals = []
 
+if args.reference.lower() == 'hg38':
+    lo = LiftOver('hg19', 'hg38')
+
 for i in range(len(df)):
     gene = df.index.values.tolist()[i]
     pos = int(df.iloc[i,2])
     chrom = df.iloc[i,1]
     print('{}\t{}\t{}'.format(gene, chrom, pos))
-    if (chrom == 'X' or chrom == 'Y'):
-        continue
+
+    if args.reference.lower() == 'hg38':
+        pos = lo.convert_coordinate('chr' + chrom, pos)
+        if len(pos) > 0:
+            pos = pos[0][1]
+        else:
+            continue
 
     vcf_reader = find_closeby_svs(vcf, chrom, pos, pos, tol=args.tolerance)
     flag = False
