@@ -154,19 +154,4 @@ else:
 
 plt.show()
 
-
-
-# plt.boxplot([out_unaff, out_aff])
-# out_y = np.concatenate((out_unaff, out_aff))
-# out_x = np.concatenate((np.zeros(len(out_unaff)), np.ones(len(out_aff))))
-# slope, intercept, r_value, p_value, std_err = linregress(out_x.astype(float), out_y.astype(float))
-# line_x = [1, 2] # this is where the boxplots will be
-# line_y = [intercept, slope+intercept]
-# plt.plot(line_x,line_y)
-# plt.xlabel('Genotype')
-# plt.ylabel('Phenotype')
-# plt.xticks([1,2], labels=['0', '1'])
-# plt.title('Fitting a linear model')
-# plt.show()
-
 vcf.close()
