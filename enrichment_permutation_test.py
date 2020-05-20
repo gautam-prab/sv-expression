@@ -18,11 +18,12 @@ def build_args():
     parser = argparse.ArgumentParser(description='Do enrichment permutation tests')
     parser.add_argument('--rnafile', default='Data/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt')
     parser.add_argument('--vcffolder', default='quantile_vcfs/')
-    parser.add_argument('--exons', const='exons_1MB.csv', default=None, nargs='?') # for method 1 exons
+    parser.add_argument('--exons', default=None, nargs='?') # for method 1 exons
     parser.add_argument('--enhancers', default=False, const=True, nargs='?')
     parser.add_argument('--bedfile', default=None)
     parser.add_argument('--genedistance', default=1000000, type=int)
     parser.add_argument('--flankingdist', default=0, type=int)
+    parser.add_argument('--genebed', default=None)
     return parser.parse_args()
 args = build_args()
 
@@ -39,7 +40,7 @@ def build_interval_list(vcf, exon_df, tol=1000000):
             print('could not find gene: {}'.format(gene))
             continue
         genes.append(gene)
-        chrs[gene] = 'chr' + str(int(record.CHROM))
+        chrs[gene] = 'chr' + record.CHROM
     gene_list = []
     exon_list = []
     lo = LiftOver('hg38', 'hg19')
@@ -100,10 +101,17 @@ def read_enhancers():
 
 
 args = build_args()
-if args.genedistance == 1000000:
-    genebed = 'gene_bedfiles/hg19_nongappedgenes_1MB.bed'
+if args.genebed is None:
+    if args.genedistance == 1000000:
+        genebed = 'gene_bedfiles/hg19_nongappedgenes_1MB.bed'
+    else:
+        genes = pybedtools.BedTool('gene_bedfiles/hg19_genes.bed').each(set_gene_tolerance, args.genedistance)
+        gaps = pybedtools.BedTool('gene_bedfiles/hg19_gaps.bed')
+        temp = genes.subtract(gaps) # nongapped genome
+        temp.saveas('temp.bed')
+        genebed = 'temp.bed'
 else:
-    genes = pybedtools.BedTool('gene_bedfiles/hg19_genes.bed').each(set_gene_tolerance, args.genedistance)
+    genes = pybedtools.BedTool(args.genebed).each(set_gene_tolerance, args.genedistance)
     gaps = pybedtools.BedTool('gene_bedfiles/hg19_gaps.bed')
     temp = genes.subtract(gaps) # nongapped genome
     temp.saveas('temp.bed')
@@ -134,17 +142,21 @@ for file in sorted(glob.glob(args.vcffolder + '*.vcf.gz')):
         exons = pybedtools.BedTool(exon_list)
 
         print('Doing permutation test for file {}...'.format(file))
-        print('Actual value: %d' % len(svs.intersect(exons, u=True)))
+        actual = len(svs.intersect(exons, u=True))
+        print('Actual value: %d' % actual)
         outs = list(svs.randomintersection(exons, iterations=100, shuffle_kwargs={'genome': 'hg19', 'incl': genebed}, intersect_kwargs={'u': True}))
         results = np.array(outs)
         print('Permuted median: %d' % np.median(results))
+        print('Percentile: %d' % len(results[results < actual]))
     else:
         sv_list = build_sv_list(vcf)
         svs = pybedtools.BedTool(sv_list)
 
         print('Doing permutation test for file {}...'.format(file))
         feats = pybedtools.BedTool(featfile)
-        print('Actual value: %d' % len(svs.intersect(feats, u=True)))
+        actual = len(svs.intersect(feats, u=True))
+        print('Actual value: %d' % actual)
         outs = list(svs.randomintersection(feats, iterations=100, shuffle_kwargs={'genome': 'hg19', 'incl': genebed}, intersect_kwargs={'u': True}))
         results = np.array(outs)
         print('Permuted median: %d' % np.median(results))
+        print('Percentile: %d' % len(results[results < actual]))
