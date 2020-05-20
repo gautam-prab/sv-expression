@@ -1,11 +1,19 @@
 # process_vcf.py
 # Reads VCF of structural variant calls into pandas for basic statistics
 
-import vcf
+from cyvcf2 import VCF
 import pandas as pd
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
+import argparse
+
+def build_args():
+    parser = argparse.ArgumentParser(description='Find basic summary statistics for samples in a vcf')
+    parser.add_argument('--vcffile', default='Data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.vcf.gz')
+    parser.add_argument('--lengthfile', default='length_statistics.dict') #output file
+    parser.add_argument('--samplefile', default='samples_counts.csv') #output file
+    return parser.parse_args()
 
 def countVariants(vcf_reader):
     '''this code counts the overall number of variants of each type'''
@@ -21,33 +29,29 @@ def countVariants(vcf_reader):
         else:
             dict[type] = 1
 
-    print(dict)
-    print('Done!')
+    return dict
 
-def iterateSamples(vcf_reader, outfile='samples_counts.csv'):
+def iterateSamples(vcf_reader, sv_types, outfile='samples_counts.csv'):
     '''this creates a table of genotypes for each sample'''
-    sv_types = ['ALU', 'LINE1', 'SVA', 'INS', 'DEL', 'DEL_ALU', 'DEL_LINE1', 'DEL_SVA', 'DEL_HERV', 'DUP', 'INV', 'CNV']
-    sample_df = pd.DataFrame(index=vcf_reader.samples, columns=sv_types)
+    samples = vcf_reader.samples
+    sample_df = pd.DataFrame(index=samples, columns=sv_types)
     sample_df = sample_df.fillna(0) # fill with 0's
 
     last_chrom = '' # for printouts
     for record in vcf_reader:
-        if record.CHROM == 'X':
-            break
 
         if record.CHROM != last_chrom:
             last_chrom = record.CHROM
             print('Chromosome #'+str(last_chrom))
 
         type = record.INFO['SVTYPE']
-        for sample in record.samples:
-            gt = sample['GT']
-            if gt != '0|0' and gt != '.' and gt != '0':
-                sample_df.at[sample.sample, type] += 1
+        for sample in samples:
+            if record.genotypes[samples.index(sample)][0] + record.genotypes[samples.index(sample)][1] > 0:
+                sample_df.at[sample, type] += 1
 
     sample_df.to_csv(outfile)
 
-def lengthStatistics(vcf_reader):
+def lengthStatistics(vcf_reader, outfile='length_statistics.dict'):
     dict = {}
     last_chrom = ''
     for record in vcf_reader:
@@ -55,24 +59,28 @@ def lengthStatistics(vcf_reader):
             last_chrom = record.CHROM
             print('Chromosome #'+str(last_chrom))
         type = record.INFO['SVTYPE']
-        if 'SVLEN' in record.INFO:
-            len = int(record.INFO['SVLEN'][0])
+        if record.INFO['SVLEN'] is not None:
+            len = record.INFO['SVLEN']
+            if len < 0:
+                len = -len
         else:
-            len = int(record.INFO['END'] - record.POS)
+            len = record.end - record.start
 
         if type not in dict:
             dict[type] = [len]
         else:
             dict[type].append(len)
 
-        with open('length_statistics.dict', 'wb') as file:
+        with open(outfile, 'wb') as file:
             pickle.dump(dict, file)
 
-def mainLength():
-    print('Reading vcf file...')
-    vcf_path = 'Data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.vcf'
-    vcf_reader = vcf.Reader(open(vcf_path, 'r'))
-    iterateSamples(vcf_reader, outfile='samples_counts_nonsex.csv')
+def main():
+    args = build_args()
+    count_dict = countVariants(VCF(args.vcffile))
+    print(count_dict)
+    lengthStatistics(VCF(args.vcffile), outfile=args.lengthfile)
+    iterateSamples(VCF(args.vcffile), list(count_dict.keys()), outfile=args.samplefile)
+
 
 if(__name__ == '__main__'):
-    mainLength()
+    main()
