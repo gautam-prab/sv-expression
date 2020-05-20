@@ -89,6 +89,8 @@ def make_violin_plot(args, dict, title):
         plt.xticks(rotation=90)
 
     ax.set_ylabel('Effect Size (beta)')
+    [bottom, top] = ax.get_ylim()
+    ax.set_ylim(min(bottom, -1), max(top, 1))
     ax.set_title(title)
 
     ax.violinplot([dict[key] for key in dict.keys()])
@@ -96,11 +98,8 @@ def make_violin_plot(args, dict, title):
     i = 1
     max_beta = 0
     for key in dict.keys():
-        for beta in dict[key]:
-            max_beta = max(max_beta, beta)
-    for key in dict.keys():
         samp_count = len(dict[key])
-        ax.text(x=i-.13,y=max_beta+.075,s=samp_count,fontsize=8,color='gray')
+        ax.text(x=i,y=0.97,s=samp_count,fontsize=8,color='gray', horizontalalignment='center', transform=ax.get_xaxis_transform())
         i+=1
 
     plt.show()

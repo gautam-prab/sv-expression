@@ -99,7 +99,7 @@ vcf.close()
 # query each gene name to MyGene.info to get exon positions and type
 if args.fromscratch:
     mg = mygene.MyGeneInfo()
-    df = mg.getgenes(list, fields='genomic_pos,ensembl.type_of_gene,exons_hg19.position', as_dataframe=True)
+    df = mg.getgenes(list, fields='genomic_pos,ensembl.type_of_gene,exons_hg19.position,exons.position', as_dataframe=True)
     print('Found {} out of {} genes'.format(len(df[df['notfound'].isna()]),len(df)))
     print(df['ensembl.type_of_gene'].value_counts())
 else:

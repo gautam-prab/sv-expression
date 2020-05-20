@@ -16,17 +16,17 @@ def build_args():
     parser.add_argument('--nsamples', default=2504, type=int, help='# of samples in VCF')
     return parser.parse_args()
 
-def make_vcfs():
-    genotypes = pd.read_csv('Data/cancer_data/cosmicOrganoid_SV_genotypes_1KGP_all.txt', sep='\t', index_col=0)
-    filenames = ['48T_refined_cosmicVariants_allPlatforms_paragraphFormat_Nov12.original.vcf', '51T_refined_cosmicVariants_allPlatforms_paragraphFormat_Nov12.original.vcf', 'SKBR3_refined_cosmicVariants_allPlatforms_paragraphFormat_Nov12.original.vcf']
+def make_vcfs(vcf_filenames, gt_file): # input a list of VCF filenames and a per-sample genotypes file
+    genotypes = pd.read_csv(gt_file, sep='\t', index_col=0)
+    filenames = vcf_filenames
     for filename in filenames:
-        old_vcf = pd.read_csv('Data/cancer_data/'+filename, sep='\t', comment='#', names=['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'N/A'])
+        old_vcf = pd.read_csv(filename, sep='\t', comment='#', names=['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO', 'FORMAT', 'N/A'])
         old_vcf = old_vcf.drop('N/A', axis='columns')
         old_vcf['FORMAT'] = 'GT'
 
         geno_interest = genotypes.loc[old_vcf['ID']].set_index(old_vcf.index)
         new_vcf = pd.concat([old_vcf, geno_interest], axis=1)
-        new_vcf.to_csv('Data/cancer_data/'+filename[:-4]+'.per_sample.vcf', index=False, sep='\t')
+        new_vcf.to_csv(filename[:-4]+'.per_sample.vcf', index=False, sep='\t')
         # I manually pasted in the metadata from the VCFs
 
 
