@@ -53,6 +53,7 @@ def main(args):
                 gts[idx] = gt[0] + gt[1]
             phens[idx] = phenotypes[sample]
 
+        # make a boxplot
         data = []
         copy_nums = np.unique(gts)
         cp_dict = {}
@@ -60,9 +61,13 @@ def main(args):
             cp_dict[num] = idx + 1
             data.append(phens[gts == num])
         plt.boxplot(data, showfliers=False)
+
+        # plot a regression line
         line_x = np.arange(1, len(cp_dict) + 1) # this is where the boxplots will be
         gts_as_x = [cp_dict[gt] for gt in gts.astype(int)] # as x coordinates
         slope, intercept, r_value, p_value, std_err = linregress(gts_as_x, phens)
+        print('Beta is %.2f' % slope)
+        print('R^2 is %.2f' % r_value)
         line_y = line_x * slope + intercept
         plt.plot(line_x,line_y,linestyle='--')
 
@@ -70,6 +75,7 @@ def main(args):
         gts_jitter = np.random.normal(np.zeros(len(gts)), 0.04)
         plt.scatter(gts_as_x + gts_jitter, phens, c=gts_as_x, cmap='rainbow', marker='.', alpha=0.4)
 
+        # make figure
         plt.xlabel('Genotype/Copy Number')
         plt.ylabel('Phenotype')
         plt.xticks(line_x, labels=copy_nums)
