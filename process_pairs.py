@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from cyvcf2 import VCF
+from cyvcf2 import VCF, Writer
 from scipy.stats import mannwhitneyu, linregress
 import argparse
 
@@ -10,7 +10,8 @@ def build_args():
     parser = argparse.ArgumentParser(description='Calculate p and beta values for each SV/gene pair')
     parser.add_argument('--rnafile', default='Data/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt', help='TSV of RNA seq data for samples of interest')
     parser.add_argument('inputfile', type=str, help='VCF file containing genotypes and paired genes')
-    parser.add_argument('--outfile', default='pairs_out.csv', help='CSV out filename')
+    parser.add_argument('--outcsv', default=None, help='CSV out filename')
+    parser.add_argument('--outvcf', default=None, help='VCF out filename')
     return parser.parse_args()
 
 def resolve_alts(gt, alts, alt_dict):
@@ -33,6 +34,13 @@ def main(args):
 
     vcf_reader = VCF(args.inputfile)
     vcf_samples = vcf_reader.samples
+
+    if args.outvcf:
+        vcf_reader.add_info_to_header({'ID': 'p', 'Description': 'association p value', 'Type':'Float', 'Number': '1'})
+        vcf_reader.add_info_to_header({'ID': 'beta', 'Description': 'association effect size', 'Type':'Float', 'Number': '1'})
+        vcf_reader.add_info_to_header({'ID': 'rsq', 'Description': 'r squared of regression', 'Type':'Float', 'Number': '1'})
+        vcf_reader.add_info_to_header({'ID': 'stderr', 'Description': 'std. err. of regression', 'Type':'Float', 'Number': '1'})
+        w = Writer(args.outvcf, vcf_reader)
 
     samples = np.intersect1d(rna_samples, vcf_samples)
 
@@ -81,8 +89,19 @@ def main(args):
         out_dict['beta'].append(beta)
         out_dict['r^2'].append(r_value ** 2)
         out_dict['std err'].append(std_err)
+        if args.outvcf:
+            v.INFO['p'] = p
+            v.INFO['beta'] = beta
+            v.INFO['rsq'] = (r_value ** 2)
+            v.INFO['stderr'] = std_err
+            w.write_record(v)
 
-    pd.DataFrame.from_dict(out_dict, orient='columns').to_csv(args.outfile)
+    if args.outcsv:
+        pd.DataFrame.from_dict(out_dict, orient='columns').to_csv(args.outfile)
+
+    vcf_reader.close()
+    if args.outvcf:
+        w.close()
 
 if __name__ == '__main__':
     args = build_args()
