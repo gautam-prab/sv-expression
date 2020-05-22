@@ -111,10 +111,8 @@ else:
             dat = df.loc[gene].iloc[3:].to_numpy()
             aff_dat = df.loc[gene][affected_samples].to_numpy()
             unaff_dat = df.loc[gene][unaffected_samples].to_numpy()
-            aff_dat = aff_dat-np.mean(dat)
-            unaff_dat = unaff_dat-np.mean(dat)
-            aff_dat = aff_dat/np.std(dat)
-            unaff_dat = unaff_dat/np.std(dat)
+            aff_dat = (aff_dat-np.mean(dat))/np.std(dat)
+            unaff_dat = (unaff_dat-np.mean(dat))/np.std(dat)
 
             _, p = mannwhitneyu(aff_dat, unaff_dat, alternative='two-sided')
             if p < (6 * 10 ** -6):
@@ -126,8 +124,17 @@ else:
 
         ax = fig.add_subplot(2,5, j)
         bins = np.histogram(np.hstack([aff_dat, unaff_dat]), bins=50)[1]
-        ax.hist(aff_dat, bins=bins, label='Positive', color='red', alpha=0.5)
-        ax.hist(unaff_dat, bins=bins, label='Negative', color='blue', alpha=0.5)
+        hom_dat = np.array([])
+        het_dat = np.array([])
+        for idx, sample in enumerate(affected_samples):
+            gt = record.genotypes[sample_ord.index(sample)][0] + record.genotypes[sample_ord.index(sample)][1]
+            if gt == 1: #het
+                het_dat = np.append(het_dat, aff_dat[idx])
+            elif gt == 2: #hom
+                hom_dat = np.append(hom_dat, aff_dat[idx])
+        ax.hist(hom_dat, bins=bins, label='Homozygous Alt', color='red', alpha=0.5)
+        ax.hist(het_dat, bins=bins, label='Heterozygous', color='yellow', alpha=0.5)
+        ax.hist(unaff_dat, bins=bins, label='Homozygous Ref', color='blue', alpha=0.5)
         ax.set_title('Exp. for Gene {0}\nwith SV {1}\np={2:.3E}'.format(gene, record.ID, p), fontsize=8)
         ax.set_xlabel('Normalized Expression', fontsize=8)
         ax.set_ylabel('Count', fontsize=8)

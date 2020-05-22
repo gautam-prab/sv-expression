@@ -67,8 +67,7 @@ def find_beta(record, df, keep_samples, sample_order, verbose=True):
     model = LinearRegression()
     model.fit(x.reshape(-1, 1), y.reshape(-1, 1))
 
-    if verbose and abs(model.coef_[0][0]) > 1:
-        print('{} with {} has anomolous beta of {}'.format(gene, record.ID, model.coef_[0][0]))
+    print('{} with {} has beta of {}'.format(gene, record.ID, model.coef_[0][0]))
 
     return model.coef_[0][0]
 

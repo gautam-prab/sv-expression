@@ -67,7 +67,7 @@ def main(args):
         gts_as_x = [cp_dict[gt] for gt in gts.astype(int)] # as x coordinates
         slope, intercept, r_value, p_value, std_err = linregress(gts_as_x, phens)
         print('Beta is %.2f' % slope)
-        print('R^2 is %.2f' % r_value)
+        print('R^2 is %.2f' % (r_value ** 2))
         line_y = line_x * slope + intercept
         plt.plot(line_x,line_y,linestyle='--')
 
