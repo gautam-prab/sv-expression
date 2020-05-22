@@ -97,7 +97,7 @@ def main(args):
             w.write_record(v)
 
     if args.outcsv:
-        pd.DataFrame.from_dict(out_dict, orient='columns').to_csv(args.outfile)
+        pd.DataFrame.from_dict(out_dict, orient='columns').to_csv(args.outcsv)
 
     vcf_reader.close()
     if args.outvcf:
