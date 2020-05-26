@@ -10,6 +10,7 @@ def build_args():
     parser = argparse.ArgumentParser(description='Calculate p and beta values for each SV/gene pair')
     parser.add_argument('--rnafile', default='Data/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt', help='TSV of RNA seq data for samples of interest')
     parser.add_argument('inputfile', type=str, help='VCF file containing genotypes and paired genes')
+    parser.add_argument('--gene', default=None, help='Ensembl name of a single gene to associate all variants to, if inputfile does not have paired genes')
     parser.add_argument('--outcsv', default=None, help='CSV out filename')
     parser.add_argument('--outvcf', default=None, help='VCF out filename')
     return parser.parse_args()
@@ -55,8 +56,10 @@ def main(args):
     out_dict['std err'] = []
 
     for v in vcf_reader:
-        gene = v.INFO.get('gene')
-        type = v.INFO.get('SVTYPE')
+        if args.gene:
+            gene = args.gene
+        else:
+            gene = v.INFO.get('gene')
         phenotypes = rna_df.loc[gene].iloc[3:]
         phenotypes = (phenotypes - np.mean(phenotypes)) / np.std(phenotypes)
 
@@ -64,6 +67,7 @@ def main(args):
         phens = np.zeros(len(samples))
 
         alts = v.ALT
+        type = v.INFO.get('SVTYPE')
         if type == 'CNV' and alts[0] in alt_dict:
             copynum = True # reference is 2
         else:

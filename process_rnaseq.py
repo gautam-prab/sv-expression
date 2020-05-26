@@ -28,20 +28,12 @@ def find_closeby_svs(vcf, chrom, start, end, tol=100000):
 
 def create_dataframe(args):
     df1 = pd.read_csv(args.rnafile, sep='\t', index_col=0)
-
-    # get rid of samples that aren't in both datasets
-    pop_df = pd.read_csv('Data/integrated_call_samples_v3.20130502.ALL.panel', sep='\t', index_col=0)
     geuvadis_samples = df1.iloc[:,3:].keys().values
-    svs_samples = pop_df.index.values
-    samples = np.intersect1d(geuvadis_samples, svs_samples)
-    exclude_samples = np.setdiff1d(geuvadis_samples, samples)
-    del pop_df # don't need this anymore
-    df1 = df1.drop(columns=exclude_samples) # get rid of extraneous samples
-    return df1, samples
+    return df1, geuvadis_samples
 
 args = build_args()
 
-df, samples = create_dataframe(args)
+df, geuvadis_samples = create_dataframe(args)
 if args.maxchrom:
     df = df[pd.to_numeric(df['Chr'], errors='coerce') <= int(args.maxchrom)]
     print(df)
@@ -49,6 +41,8 @@ fig = plt.figure()
 
 vcf = VCF(args.vcffile)
 sample_ord = vcf.samples
+samples = np.intersect1d(geuvadis_samples, sample_ord)
+df = df.drop(columns=np.setdiff1d(geuvadis_samples, samples)) # get rid of extraneous samples
 if args.outfile:
     vcf.add_info_to_header({'ID': 'gene', 'Description': 'overlapping gene', 'Type':'Character', 'Number': '1'})
     w = Writer(args.outfile, vcf)
@@ -72,7 +66,6 @@ for i in range(len(df)):
             continue
 
     vcf_reader = find_closeby_svs(vcf, chrom, pos, pos, tol=args.tolerance)
-    flag = False
 
     for record in vcf_reader:
         affected_samples = np.array([])
