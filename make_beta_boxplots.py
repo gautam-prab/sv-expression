@@ -9,6 +9,7 @@ def build_args():
     parser = argparse.ArgumentParser(description='Plot the genotype-phenotype regression')
     parser.add_argument('inputfile', type=str, help='VCF (with gene annotations) of variants to make boxplots of')
     parser.add_argument('--rnafile', default='Data/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt')
+    parser.add_argument('--remove_outliers', default=None, type=float, help='Remove extreme expression outliers >n standard deviations')
     return parser.parse_args()
 
 def resolve_alts(gt, alts, alt_dict):
@@ -39,6 +40,7 @@ def main(args):
     for v in vcf_reader:
         gene = v.INFO.get('gene')
         phenotypes = rna_df.loc[gene].iloc[3:]
+        uncorrected_phenotypes = phenotypes
         phenotypes = (phenotypes - np.mean(phenotypes)) / np.std(phenotypes)
 
         gts = np.zeros(len(samples))
@@ -53,6 +55,9 @@ def main(args):
                 gts[idx] = gt[0] + gt[1]
             phens[idx] = phenotypes[sample]
 
+        if args.remove_outliers is not None:
+            gts = gts[phens < args.remove_outliers]
+            phens = phens[phens < args.remove_outliers]
         # make a boxplot
         data = []
         copy_nums = np.unique(gts)
