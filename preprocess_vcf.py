@@ -7,13 +7,13 @@ from snphwe import snphwe
 import argparse
 
 def build_args():
-    parser = argparse.ArgumentParser(description='Filter vcf by % called and HWE')
-    parser.add_argument('--vcffile', required=True, help='VCF to filter')
-    parser.add_argument('--statsfile', required=True, help='Genotype Frequencies')
+    parser = argparse.ArgumentParser(description='Filter vcf by \% called and HWE')
+    parser.add_argument('vcffile', help='VCF to filter')
     parser.add_argument('--outfile', required=False, default='', help='Output for filtered VCF')
-    parser.add_argument('--uncalled', default=0.4, type=float, help='Fraction uncalled required to reject (default 0.4)')
+    parser.add_argument('--uncalled', default=0.4, type=float, help='Filter out variant with > this %% of uncalled genotypes (default 40%%)')
     parser.add_argument('--hwe', default=0.0001, type=float, help='HWE p value to reject (default 0.0001)')
-    parser.add_argument('--nsamples', default=2504, type=int, help='# of samples in VCF')
+    parser.add_argument('--maf', default=10, type=int, help='Require at least this # of het or homAlt genotypes (default 10)')
+    parser.add_argument('--ref', default=10, type=int, help='Require at least this # of homRef genotypes (default 10)')
     return parser.parse_args()
 
 def make_vcfs(vcf_filenames, gt_file): # input a list of VCF filenames and a per-sample genotypes file
@@ -30,34 +30,43 @@ def make_vcfs(vcf_filenames, gt_file): # input a list of VCF filenames and a per
         # I manually pasted in the metadata from the VCFs
 
 
+# this requires per-sample VCFs
 def filter_vcfs(args):
-    N = args.nsamples
-    vcf_reader = VCF(args.vcffile)
+    vcf_reader = VCF(args.vcffile, gts012=True) # sets gt: 0 = homRef, 1 = het, 2 = homAlt, 3 = unknown
+    nsamples = len(vcf_reader.samples)
     if (args.outfile != ''):
         vcf_writer = Writer(args.outfile, vcf_reader)
-    stats = pd.read_csv(args.statsfile, sep='\t', index_col=0)
     overall_count = 0
     uncalled_count = 0
     hwe_count = 0
+    maf_count = 0
     for v in vcf_reader:
         overall_count += 1
-        # check % uncalled
-        unc = stats.loc[v.ID, 'uncalled']
-        if (unc > args.uncalled): # too many uncalled
+
+        gts = v.gt_types
+        ref = len(gts[gts == 0])
+        het = len(gts[gts == 1])
+        alt = len(gts[gts == 2])
+        unc = len(gts[gts == 3])
+
+        # check number uncalled
+        if ((unc / nsamples) > args.uncalled): # too many uncalled
             uncalled_count += 1
             continue
 
         # check HW equilibrium
-        het = stats.loc[v.ID, 'het']
-        alt = stats.loc[v.ID, 'homAlt']
-        ref = stats.loc[v.ID, 'homRef']
-        called_N = round((het + alt + ref) * N)
-        n_het = round(het * called_N)
-        n_alt = round(alt * called_N)
+        called_N = het + alt + ref
+        n_het = round(het * called_N / nsamples)
+        n_alt = round(alt * called_N / nsamples)
         n_ref = called_N - n_het - n_alt
         p = snphwe(n_het, n_alt, n_ref)
         if (p < args.hwe): # does not follow HWE expectation
             hwe_count += 1
+            continue
+
+        # check number alt and ref
+        if ((het + alt) < args.maf or ref < args.ref):
+            maf_count += 1
             continue
 
         if (args.outfile != ''):
@@ -70,7 +79,8 @@ def filter_vcfs(args):
     print('Saw %d variants overall' % overall_count)
     print('Filtered out %d due to too many uncalled' % uncalled_count)
     print('Filtered out %d due to breaking HWE assumption' % hwe_count)
-    print('Left with %d variants' % (overall_count - uncalled_count - hwe_count))
+    print('Filtered out %d due to not enough Alt or Ref genotpyes' % maf_count)
+    print('Left with %d variants' % (overall_count - uncalled_count - hwe_count - maf_count))
 
 
 if __name__ == '__main__':
