@@ -10,7 +10,7 @@ def build_args():
     parser = argparse.ArgumentParser(description='Filter vcf by \% called and HWE')
     parser.add_argument('vcffile', help='VCF to filter')
     parser.add_argument('--outfile', required=False, default='', help='Output for filtered VCF')
-    parser.add_argument('--uncalled', default=0.4, type=float, help='Filter out variant with > this %% of uncalled genotypes (default 40%%)')
+    parser.add_argument('--uncalled', default=0.4, type=float, help='Filter out variant with > this fraction of uncalled genotypes (default 0.4)')
     parser.add_argument('--hwe', default=0.0001, type=float, help='HWE p value to reject (default 0.0001)')
     parser.add_argument('--maf', default=10, type=int, help='Require at least this # of het or homAlt genotypes (default 10)')
     parser.add_argument('--ref', default=10, type=int, help='Require at least this # of homRef genotypes (default 10)')

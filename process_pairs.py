@@ -33,8 +33,8 @@ def main(args):
     rna_df = pd.read_csv(args.rnafile, sep='\t', index_col=0)
     rna_samples = rna_df.iloc[:,3:].keys().values
 
-    vcf_reader = VCF(args.inputfile)
-    vcf_samples = vcf_reader.samples
+    vcf_reader = VCF(args.inputfile, gts012=True)
+    samples = np.array(vcf_reader.samples)
 
     if args.outvcf:
         vcf_reader.add_info_to_header({'ID': 'p', 'Description': 'association p value', 'Type':'Float', 'Number': '1'})
@@ -42,8 +42,6 @@ def main(args):
         vcf_reader.add_info_to_header({'ID': 'rsq', 'Description': 'r squared of regression', 'Type':'Float', 'Number': '1'})
         vcf_reader.add_info_to_header({'ID': 'stderr', 'Description': 'std. err. of regression', 'Type':'Float', 'Number': '1'})
         w = Writer(args.outvcf, vcf_reader)
-
-    samples = np.intersect1d(rna_samples, vcf_samples)
 
     alt_dict = {'<CN0>' : 0, '<CN2>' : 2, '<CN3>' : 3, '<CN4>' : 4, '<CN5>' : 5, '<CN6>' : 6, '<CN7>' : 7, '<CN8>' : 8, '<CN9>' : 9}
 
@@ -69,16 +67,16 @@ def main(args):
         alts = v.ALT
         type = v.INFO.get('SVTYPE')
         if type == 'CNV' and alts[0] in alt_dict:
-            copynum = True # reference is 2
+            copynum = True
+            for idx, sample in enumerate(samples):
+                gt = v.genotypes[list(samples).index(sample)]
+                gts[idx] = resolve_alts(gt, alts, alt_dict) # resolve copy numbers
+                phens[idx] = phenotypes[sample]
         else:
             copynum = False
-        for idx, sample in enumerate(samples):
-            gt = v.genotypes[vcf_samples.index(sample)]
-            if copynum:
-                gts[idx] = resolve_alts(gt, alts, alt_dict) # resolve copy numbers
-            else:
-                gts[idx] = gt[0] + gt[1]
-            phens[idx] = phenotypes[sample]
+            gts = v.gt_types
+            phens = np.array(phenotypes[samples[gts != 3]], dtype=float)
+            gts = gts[gts != 3]
 
         if copynum:
             _,p = mannwhitneyu(phens[gts != 2], phens[gts == 2], alternative='two-sided')
