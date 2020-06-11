@@ -6,6 +6,8 @@
 
 !*.py
 !.gitignore
+!README.md
+!requirements.txt
 
 ### macOS ###
 # General
