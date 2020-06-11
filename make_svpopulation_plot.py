@@ -10,6 +10,7 @@ import argparse
 def build_args():
     parser = argparse.ArgumentParser(description='Generate a plot of the SVs in each sample of a VCF')
     parser.add_argument('--csvfile', default='samples_counts.csv')
+    parser.add_argument('--populationfile', default='Data/integrated_call_samples_v3.20130502.ALL.panel', help='TSV file with population assignments for each sample')
     parser.add_argument('--population', default='super_pop', help='Population to split on (options: gender, super_pop, pop)')
     parser.add_argument('--mergeMEs', action='store_true', help='Merge Mobile Elements (from 1KGP SV calls)')
     parser.add_argument('--matchcolors', action='store_true', help='Match colors of GTEx nature genetics paper')
@@ -32,7 +33,7 @@ def makefigure(df, sort_by, args):
         df = df.drop(columns=['ALU', 'LINE1', 'SVA'])
 
     # now we read superpopulation data
-    pop_df = pd.read_csv('Data/integrated_call_samples_v3.20130502.ALL.panel', sep='\t', index_col=0)
+    pop_df = pd.read_csv(args.populationfile, sep='\t', index_col=0)
     df[sort_by] = pop_df[sort_by]
     df = df.sort_values(by=sort_by, axis=0)
 
