@@ -3,7 +3,7 @@ mygene==3.1.0
 cyvcf2==0.10.8
 snphwe==1.0.2
 pandas==1.0.3
-numpy==1.18.1
+numpy==1.22.0
 pyliftover==0.4
 pybedtools==0.8.1
 scipy==1.4.1
